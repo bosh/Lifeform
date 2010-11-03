@@ -1,1 +1,2 @@
-appletviewer -J-Djava.security.policy=openPolicy.sec simpleMidiGame.html
+#! /bin/bash
+appletviewer game.html
