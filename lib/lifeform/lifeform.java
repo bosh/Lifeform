@@ -18,55 +18,35 @@ public abstract class Lifeform {
 	Queue actions = new LinkedList(); //The current action and any that are queued to happen
 	Map interactions = new HashMap();
 
-	String current_behavior;
+	String currentBehavior;
 	Map behaviors = new HashMap();
 
 	ArrayList types = new ArrayList();
 
 	ArrayList conditions = new Arraylist(); //Any currently-applied effects such as burning
 
-	public java.applet.Applet get_applet() { //May want to work specifically with game and thus use platform
+	public java.applet.Applet getApplet() { //May want to work specifically with game and thus use platform
 		return this.applet;
 	}
 
-	public void set_name(String name) { this.name = name; }
+	public void setName(String name) { this.name = name; }
 	public String name() { return name; } //Returns full name
-	public abstract String short_name() {} //Returns a shorter name
-	public abstract String render_name() {}; //Returns the name to display when rendered
+	// public abstract String shortName() {} //Returns a shorter name
+	// public abstract String renderName() {}; //Returns the name to display when rendered
 
-	public void set_state(String state) {
-		this.state = state;
-	}
-
-	public String get_state() {
-		return state;
-	}
-
-	public boolean is_alive() {
-		return is_state("Alive");
-	}
-
-	public boolean is_dead() {
-		return is_state("Dead");
-	}
-
-	public boolean is_spawned() {
-		return (spawned == true);
-	}
-
-	public boolean is_not_state(String st) {
-		return (!is_state(st));
-	}
-
-	public boolean is_state(String st) {
-		return (get_state() == st);
-	}
+	public void setState(String state) { this.state = state; }
+	public String getState() { return state; }
+	public boolean isAlive() { return isState("Alive"); }
+	public boolean isDead() { return isState("Dead"); }
+	public boolean isSpawned() { return (spawned == true); }
+	public boolean isNotState(String st) { return (!isState(st)); }
+	public boolean isState(String st) { return (getState() == st); }
 
 	public boolean spawn() { //Returns false if was already spawned
 		if (spawned == false) {
-			String on_spawn = get_interaction("on_spawn");
+			String on_spawn = getInteraction("on_spawn");
 			if (on_spawn != null) {
-				activate_interaction(on_spawn);
+				activateInteraction(on_spawn);
 			}
 			state = "Alive";
 			spawned = true;
@@ -77,166 +57,140 @@ public abstract class Lifeform {
 		}
 	}
 
+	public abstract void remove() {} //Pop out removal
+	
 	public void despawn() { //This set might be better as behaviors or interactions
 		if (spawned == true) {
+			setState("Unspawned");
 			spawned = false;
 			remove();
 		}
 	}
 
-	public abstract void remove() {} //Pop out removal
-	public abstract void destroy() {}; //Death via game mechanics
+	public void destroy() { //Death via game mechanics
+		setState("Dead");
+		if(interactions.containsKey("on_death")) {
+			interactions.get("on_death"); //and run it
+		}
+		remove();
+	}
 
 	//Statistics are static values set at create/spawn time that change rarely
-	public void set_statistic(String stat, int value) { //needs to have the ability to save any type of statistic
-		statistics.put(stat, value);
-	}
+	public void setStatistic(String stat, int value) { statistics.put(stat, value); } //needs to have the ability to save any type of statistic
 
-	public boolean increment_statistic(String stat, int amount) { //Returns false if over max, sets value to max
+	public boolean incrementStatistic(String stat, int amount) { //Returns false if over max, sets value to max
+		int new_amount = getRawStatistic() + amount;
 		//do max checking
-		set_statistic(stat, get_raw_statistic + amount);
+		setStatistic(stat, new_amount);
 		return true;
 	}
 
-	public boolean decrement_statistic(String stat, int amount) { //Returns false if under min, sets value to min
+	public boolean decrementStatistic(String stat, int amount) { //Returns false if under min, sets value to min
+		int new_amount = getRawStatistic() - amount;
 		//do min checking
-		set_statistic(stat, get_raw_statistic - amount);
+		setStatistic(stat, new_amount);
 		return true;
 	}
 
-	public int get_statistic(String stat) { //needs to be as type-inspecific as the above
+	public int getStatistic(String stat) { //needs to be as type-inspecific as the above
 		//get modifiers here
-		int value = get_raw_statistic(stat);
+		int value = getRawStatistic(stat);
 		//return multiplicativemods*(additivemodifiers + value)
 		return value;
 	}
 
-	int get_raw_statistic(String stat) {
-		return (int) statistics.get(stat);
-	}
+	private int getRawStatistic(String stat) { return (int) statistics.get(stat); }
 
 	//Resources are values that should have min and max, and can change on the fly or on tick
-	public void set_resource(String res, int value) {
-		resources.put(res, value);
+	public void setResource(String res, int value) { resources.put(res, value); }
+
+	public void emptyResource(String res){ //Drain/set to 0
+		setResource(res, 0); //should be resource.min
 	}
 
-	public void empty_resource(String res){ //Drain/set to 0
-		set_resource(res, 0); //should be resource.min
+	public void fillResource(String res){ //Set to max, if known, else 100
+		setResource(res, 100); //should be resource.max
 	}
 
-	public void fill_resource(String res){ //Set to max, if known, else 100
-		set_resource(res, 100); //should be resource.max
-	}
-
-	public boolean decrement_resource(String res, int amount, boolean force){ //returns false if couldn't decrement that much
-		int resource = get_resource(res);
+	public boolean decrementResource(String res, int amount, boolean force){ //returns false if couldn't decrement that much
+		int resource = getResource(res);
 		//do not decrement if the result would be below 0 and return false
-		set_resource(resource - amount);
+		setResource(resource - amount);
 		return true;
 	}
 
-	public boolean increment_resource(String res, int amount, boolean force){ //returns true if over maximum, force causes over max, else rounds to maximum
-		int resource = get_resource(res);
-		set_resource(res, resource + amount);
+	public boolean incrementResource(String res, int amount, boolean force){ //returns true if over maximum, force causes over max, else rounds to maximum
+		int resource = getResource(res);
+		setResource(res, resource + amount);
 		return false;
 	}
 
-	public int get_resource(String res) {
-		resources.get(res);
-	}
+	public int getResource(String res) { resources.get(res); }
 
 	//Actions are the set of things the lifeform is doing or is going to do
-	public void queue_actions(int duration) { //Enqueues count number of action time (sum of actions' times will be > count)
-		behavior = get_current_behavior();
+	public void queueActions(int duration) { //Enqueues count number of action time (sum of actions' times will be > count)
+		behavior = getCurrentBehavior();
 		//then actions.add() each of behavior.generate_action_pattern(duration) array;
 	}
+	
+	//Eventually becomes an Action type/interface (Action.execute with arguments like target)
+	public String currentAction() { return actions.peek(); }
 
-	public String current_action() { //Eventually becomes an Action type/interface (Action.execute with arguments like target)
-		return actions.peek();
-	}
-
-	public void stop_current_action(boolean force) { //Drops the current, force drops current and any actions of the same type in a row
+	public void stopCurrentAction(boolean force) { //Drops the current, force drops current and any actions of the same type in a row
 		//if (actions.peek() != null) { actions.peek().stop_execution(); }
 		actions.poll();
 	}
 
 	//Interactions are the possible things to enqueue to actions. interactions may directly enqueue or may create action objects that contain values for the specific instance of the action to carry out
-	public void set_interaction(String name, String interaction) { //String interaction => Interaction interaction, another interface
-		interactions.put(name, interaction);
-	}
 
-	public String get_interaction(String inter) { //Interactions as an interface that has Interaction.interact() or something
-		return interactions.get(inter);
-	}
+	//String interaction => Interaction interaction, another interface
+	public void setInteraction(String name, String interaction) { interactions.put(name, interaction); }
 
-	ArrayList get_listening_interactions() { //Returns the interactions worth calling back on
+	//Interactions as an interface that has Interaction.interact() or something
+	public String getInteraction(String inter) { return interactions.get(inter); }
+
+	private ArrayList getListeningInteractions() { //Returns the interactions worth calling back on
 		ArrayList listeners = new ArrayList();
 		//for each interaction, if it's a callback type, add it to the list
 		return listeners;
 	}
 
 	//Behaviors are higher level AI patterns that determine how to enqueue actions
-	public void add_behavior(String name, String behavior) { //String behavior => Behavior behavior
-		behaviors.put(name, behavior);
-	}
+	public void addBehavior(String name, String behavior) { behaviors.put(name, behavior); }
+	public String getBehavior(String behavior) { return behaviors.get(behavior); }
+	public void setCurrentBehavior(String behavior) { currentBehavior = behavior; }
+	public String getCurrentBehavior() { return currentBehavior; }
 
-	public String get_behavior(String behavior) {
-		return behaviors.get(behavior);
-	}
-
-	public String get_current_behavior() {
-		return current_behavior;
-	}
-
-	public boolean activate_behavior(String behavior) { //Returns false if the behavior is not present
+	public boolean activateBehavior(String behavior) { //Returns false if the behavior is not present
 		//TODO: allow behaviors to change state from nonselectable to selectable sets
 		return true;
 	}
 
-	public boolean deactivate_behavior(String behavior) { //Returns false if the behavior is not present
+	public boolean deactivateBehavior(String behavior) { //Returns false if the behavior is not present
 		//TODO: see above
 		return true;
 	}
 
-	public void set_current_behavior(String behavior) {
-		current_behavior = behavior;
+	public void randomizeBehavior() {
+		String behavior = "";
+		//TODO: make this a random behavior from the possible set
 	}
 
-	public void randomize_behavior() {
-		String behavior = ""; //TODO: make this a random behavior from the possible set
-	}
-
-	public void stop_behavior() { //Dumps current behavior and replaces with null or default
+	public void stopBehavior() { //Dumps current behavior and replaces with null or default
 		String default_behavior = null;
 		//if there's a default, choose that instead
-		set_current_behavior(default_behavior);
+		setCurrentBehavior(default_behavior);
 	}
 
 	//Types ... might as well be booleans in statistics, to be honest
-	public void add_type(String name) {
-		types.add(name);
-	}
-
-	public void remove_type(String name) {
-		types.remove(types.indexOf(name));
-	}
-
-	public boolean is_type(String type) {
-		return (types.indexOf(type) != -1);
-	}
-
-	public boolean is_not_type(String type) {
-		return (!is_type(type));
-	}
+	public void addType(String name) { types.add(name); }
+	public void removeType(String name) { types.remove(types.indexOf(name)); }
+	public boolean isType(String type) { return (types.indexOf(type) != -1); }
+	public boolean isNotType(String type) { return (!isType(type)); }
 
 	//Conditions should implement an interface that is apply(), remove(), recover(), tick() (or something)
-	public boolean has_condition(String condition) { //conditions are like Burning
-		return (conditions.indexOf(condition) != -1)
-	}
-
-	public boolean does_not_have_condition(String condition) { //implement ConditionalEffect and replace String with that
-		return (!has_condition(condition));
-	}
+	public boolean hasCondition(String condition) { return (conditions.indexOf(condition) != -1) }
+	public boolean doesNotHaveCondition(String condition) { return (!hasCondition(condition)); }
 
 	public abstract void tick() {}; //runs a step worth of the creature whenever the app determines appropriate
 	public abstract void render() {}; //until I implement renderable, which is an interface that includes public void render()
